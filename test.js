@@ -7,14 +7,15 @@ var should = chai.should();
 chai.use(chaiHttp);
 
 describe('/PUT sms', function(){
+    var requestMock;
 
     beforeEach(function(done){
-        n = nock('http://www.tim.com.br').put('/api/v1/sms');
+        requestMock = nock('http://www.tim.com.br').put('/api/v1/sms');
         done();
     });
 
     it('should send', function(done){
-        n.reply(201);
+        requestMock.reply(201);
 
         chai.request(app).put('/api/v1/sms/send').end(function(err, res){
             res.should.have.status(201);
@@ -25,7 +26,7 @@ describe('/PUT sms', function(){
     });
 
     it('should not send when external api responds with error', function(done){
-        n.replyWithError;
+        requestMock.replyWithError;
 
         chai.request(app).put('/api/v1/sms/send').end(function(err, res){
             res.should.have.status(500);
