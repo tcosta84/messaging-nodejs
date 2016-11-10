@@ -3,6 +3,10 @@ var request = require('request');
 var nock = require('nock');
 var router = express.Router();
 
+var environment = process.env.NODE_ENV || 'development';
+var config = require('./knexfile.js')[environment];
+var knex = require('knex')(config);
+
 router.put('/sms/send', function(req, res, next){
 
     // Validation
@@ -19,24 +23,46 @@ router.put('/sms/send', function(req, res, next){
         return;
     }
 
-    var options = {
-        'headers': {
-            'Content-type': 'application/json'
-        }
-    };
+    knex('message')
+        .insert({
+            from: req.body.from,
+            to: req.body.to,
+            body: req.body.body
+        })
+        .returning('id')
+        .then(function(id){
+            console.log('Inserted message id: ' + id);
 
-    request.put('http://www.tim.com.br/api/v1/sms', options, function(error, response, body){
-        if(error){
-            res.status(500).send({'error': 'Internal Server Error'});
-            return;
-        }
+            var options = {
+                'headers': {
+                    'Content-type': 'application/json'
+                }
+            };
 
-        if(response.statusCode == 201){
-            res.status(201).json({'description': 'Message sent!'});
-        } else {
-            res.status(205).end();
-        }
-    });
+            request.put('http://www.tim.com.br/api/v1/sms', options, function(error, response, body){
+                if(error){
+                    res.status(500).send({'error': 'Internal Server Error'});
+                    return;
+                }
+
+                knex('message')
+                    .update({
+                        status_code: response.statusCode
+                    })
+                    .then(function(affectedRows){
+                        console.log('Affected rows on update: ' + affectedRows);
+                    });
+
+                if(response.statusCode == 201){
+                    res.status(201).json({'description': 'Message sent!'});
+                } else {
+                    res.status(205).end();
+                }
+
+            });
+
+        });
+
 });
 
 module.exports = router;
